@@ -2,7 +2,7 @@
 
 > ⚠️ **THIS IS A PRIVATE SYSTEM MADE FOR PERSONAL USE ONLY**  
 > This repository does **not include full files** and is **not intended for public use**.  
-> It is a core system for handling **Roblox application-based interactions** and more, built and maintained privately by [SUP_GAMERYT1](https://www.roblox.com/users/1149552796/profile).
+> It is a core system for handling **Roblox application-based interactions** and more, built and maintained privately by [SUP_GAMERYT1](https://www.roblox.com/users/2293555397/profile).
 
 ---
 
@@ -49,7 +49,7 @@ It is intended as a **reference / backup for the creator only**.
 ## 🧠 Author
 
 👤 **SUP_GAMERYT1**  
-- 🔗 [Roblox Profile](https://www.roblox.com/users/1149552796/profile)
+- 🔗 [Roblox Profile](https://www.roblox.com/users/2293555397/profile)
 - 🎮 Roblox Developer | UI/UX Designer | System Scripter
 
 ---
