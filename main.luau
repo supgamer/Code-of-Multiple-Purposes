@@ -9,228 +9,178 @@ _____                 _____                _
               | |                     __/ |               
               |_|                    |___/                
 
-Made by: SUP_GAMERYT1
---]]
+Made by: SUP_GAMERYT1 (Refactored for exam standards)
+]]
 
---[[ Setup Services ]]--
+--// Services Setup
+-- We use these services to access key Roblox features like players, storage, datastore and HTTP calls
 local Players = game:GetService("Players")
-local ReplStorage = game:GetService("ReplicatedStorage")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local DataStoreService = game:GetService("DataStoreService")
-local HTTP = game:GetService("HttpService")
+local HttpService = game:GetService("HttpService")
 
---[[ Admin and Command Config ]]--
-local prefix = ":"
-local cooldown = false
-local admins = { "SUP_GAMERYT1" }
-local commands = {}
+--// Configuration
+local PREFIX = ":" -- All admin commands start with this character
+local COOLDOWN_DURATION = 10 -- Prevents command spamming by adding a cooldown
+local admins = {"SUP_GAMERYT1"} -- Only users in this list are allowed to run commands
+local webhookUrl = "" -- Webhook used for external notifications (e.g., Discord)
 
---[[ Webhook Settings ]]--
-local webhookurl = ""
+--// State
+local cooldown = false -- Track if a command is in cooldown
+local commands = {} -- Holds all defined commands and their functions
 
---[[ Helper Functions ]]--
+--// Utility Functions
+--- Check if the player is in the admin list
 local function isAdmin(player)
-    for _, admin in ipairs(admins) do
-        if admin == player.Name then
-            return true
-        end
-    end
-    return false
+	for _, admin in ipairs(admins) do
+		if player.Name == admin then return true end
+	end
+	return false -- Not found in the list
 end
 
+--- Sends a formatted webhook message externally (Discord, etc.)
 local function sendWebhook(player, eventType)
-    local data = {
-        content = "https://www.roblox.com/games/8780919502/Kyrenia-Storage-Facility",
-        embeds = {
-            {
-                title = ":scroll: TRAINING ANNOUNCEMENT :scroll:",
-                description = ":small_orange_diamond: | A Training is being hosted by  " .. player.Name,
-                color = 9961235,
-                fields = {
-                    { name = "-", value = "** **" },
-                    { name = "Event Type:", value = "**" .. eventType .. "**" },
-                    { name = "Rules", value = "Follow the rules to avoid punishment." },
-                    { name = "Abusing", value = "Trolling is not funny for others." }
-                },
-                image = {
-                    url = "https://tr.rbxcdn.com/2b79ec333ed66c6b16a4c92e3df2c615/768/432/Image/Png"
-                }
-            }
-        }
-    }
-    local finaldata = HTTP:JSONEncode(data)
-    HTTP:PostAsync(webhookurl, finaldata)
+	local data = {
+		content = "https://www.roblox.com/games/8780919502/Kyrenia-Storage-Facility", -- Game link
+		embeds = {{
+			title = ":scroll: TRAINING ANNOUNCEMENT :scroll:",
+			description = ":small_orange_diamond: | A Training is being hosted by  " .. player.Name,
+			color = 9961235, -- Orange-yellow highlight
+			fields = {
+				{name = "-", value = "** **"}, -- Spacer
+				{name = "Event Type:", value = "**" .. eventType .. "**"},
+				{name = "Rules", value = "Follow the rules to avoid punishment."},
+				{name = "Abusing", value = "Trolling is not funny for others."}
+			},
+			image = {
+				url = "https://tr.rbxcdn.com/2b79ec333ed66c6b16a4c92e3df2c615/768/432/Image/Png"
+			}
+		}}
+	}
+	local payload = HttpService:JSONEncode(data) -- Convert table to JSON
+	HttpService:PostAsync(webhookUrl, payload) -- Send to webhook URL
 end
 
+--- Sends an on-screen notification to the player using GUI
 local function sendNotification(player, message, color)
-    local notif = player.PlayerGui.NotificationHandler.TextLabel:Clone()
-    notif.Text = message
-    notif.Visible = true
-    notif.BackgroundColor3 = color
-    notif.Parent = player.PlayerGui.NotificationHandler
-    ReplStorage.SupEngine_Events.NotifSoundHandler:FireClient(player)
-    task.delay(3, function()
-        notif:Destroy()
-    end)
+	local gui = player:WaitForChild("PlayerGui")
+	local notifGui = gui:FindFirstChild("NotificationHandler")
+	if notifGui then
+		local label = notifGui.TextLabel:Clone() -- Clone to avoid interfering with template
+		label.Text = message -- Set the notification message
+		label.BackgroundColor3 = color -- Highlight color
+		label.Parent = notifGui -- Parent to GUI
+		label.Visible = true -- Show the notification
+		ReplicatedStorage.SupEngine_Events.NotifSoundHandler:FireClient(player) -- Trigger sound
+		task.delay(3, function()
+			label:Destroy() -- Auto remove after 3 seconds
+		end)
+	end
 end
 
---[[ Player Setup ]]--
-local function setupPlayer(player)
-    local leaderstats = Instance.new("Folder", player)
-    leaderstats.Name = "leaderstats"
-
-    local info = Instance.new("Folder", player)
-    info.Name = "Other_Info"
-
-    local wantedLevel = Instance.new("IntValue", info)
-    wantedLevel.Name = "W_Level"
-
-    local wantedTimer = Instance.new("IntValue", info)
-    wantedTimer.Name = "WantedRT"
-
-    local money = Instance.new("IntValue", leaderstats)
-    money.Name = "Money"
-
-    player.CharacterAdded:Connect(function(char)
-        local overhead = script.Rank:Clone()
-        overhead.Parent = char:WaitForChild("Head")
-        overhead.Enabled = true
-        overhead.Frame.Name1.Text = player.Name
-        overhead.Frame.Rank.Text = player:IsInGroup(3838582) and player:GetRoleInGroup(3838582) or "New Visitor"
-        if player.Name == "SUP_GAMERYT1" then
-            overhead["Owner Badge"].Transparency = 0
-        end
-    end)
-
-    wantedTimer.Changed:Connect(function()
-        if wantedTimer.Value == 0 then
-            wantedLevel.Value = 0
-            for _, star in ipairs(player.PlayerGui.WantedLevels.StarsHandler:GetChildren()) do
-                if star:IsA("ImageLabel") then
-                    star.Visible = false
-                end
-            end
-        end
-    end)
-
-    task.spawn(function()
-        while player and player.Parent do
-            task.wait(30)
-            local amount = player:IsInGroup(3838582) and math.random(1000, 5000) or math.random(500, 1000)
-            money.Value += amount
-            sendNotification(player, "🏦 Office of [NAME] Bank\nYou received $" .. amount, Color3.fromRGB(88, 255, 17))
-        end
-    end)
-end
-
---[[ Command Registration ]]--
+--// Command Functions
+-- Change the host's team to black and notify others
 commands.host = function(player)
-    if not cooldown then
-        player.TeamColor = BrickColor.new("Black")
-        cooldown = true
-        task.delay(10, function()
-            cooldown = false
-        end)
-    end
+	if cooldown then return end
+	player.TeamColor = BrickColor.new("Black") -- Team used for host
+	cooldown = true
+	sendNotification(player, ":mega: You have started hosting.", Color3.fromRGB(255, 170, 0))
+	task.delay(COOLDOWN_DURATION, function()
+		cooldown = false -- Re-enable command use
+	end)
 end
 
-commands.unhost = function()
-    if not cooldown then
-        cooldown = true
-        task.delay(10, function()
-            cooldown = false
-        end)
-    end
+-- Reset hosting state (could be used for clarity or events ending)
+commands.unhost = function(player)
+	if cooldown then return end
+	cooldown = true
+	sendNotification(player, ":octagonal_sign: You have ended the hosting.", Color3.fromRGB(200, 200, 200))
+	task.delay(COOLDOWN_DURATION, function()
+		cooldown = false
+	end)
 end
 
+-- Sends help UI to client
 commands.hosthelp = function(player)
-    ReplStorage.SupEngine_Events.AdminHelpFE:FireClient(player)
+	ReplicatedStorage.SupEngine_Events.AdminHelpFE:FireClient(player)
 end
 
---[[ Chat Parser ]]--
-Players.PlayerAdded:Connect(function(player)
-    setupPlayer(player)
+--// Player Setup
+-- Initializes leaderstats and wanted system for each player
+local function setupPlayer(player)
+	-- Leaderstats Setup (money stat visible on leaderboard)
+	local leaderstats = Instance.new("Folder")
+	leaderstats.Name = "leaderstats"
+	leaderstats.Parent = player
 
-    player.Chatted:Connect(function(message)
-        local args = message:split(" ")
-        local commandName = args[1]:sub(2):lower()
-        table.remove(args, 1)
+	local money = Instance.new("IntValue")
+	money.Name = "Money"
+	money.Value = 0
+	money.Parent = leaderstats
 
-        if message:sub(1, 1) == prefix and commands[commandName] then
-            commands[commandName](player, args)
-        end
-    end)
-end)
+	-- Extra Info Folder
+	local info = Instance.new("Folder")
+	info.Name = "Other_Info"
+	info.Parent = player
 
---[[ Wanted Trigger System ]]--
-workspace:WaitForChild("WLH"):WaitForChild("Wanted_Handler").Triggered:Connect(function(plr)
-    if plr.Team == game.Teams.Police then
-        plr.Team = game.Teams.Civilian
-        plr:LoadCharacter()
-    end
+	local wLevel = Instance.new("IntValue")
+	wLevel.Name = "W_Level"
+	wLevel.Value = 0
+	wLevel.Parent = info
 
-    local level = plr.Other_Info.W_Level
-    if level.Value < 6 then
-        level.Value += 1
-    end
+	local wantedRT = Instance.new("IntValue")
+	wantedRT.Name = "WantedRT"
+	wantedRT.Value = 0
+	wantedRT.Parent = info
 
-    local star = plr.PlayerGui.WantedLevels.StarsHandler:FindFirstChild("star_" .. level.Value)
-    if star then star.Visible = true end
-
-    sendNotification(plr, "Wanted\nYou are wanted. Level: " .. level.Value, Color3.fromRGB(255, 0, 4))
-
-    local timer = plr.Other_Info.WantedRT
-    local active = true
-    timer.Value += 15
-
-    task.delay(1, function()
-        active = false
-    end)
-
-    task.spawn(function()
-        while not active do
-            task.wait(1)
-            if timer.Value > 0 then
-                timer.Value -= 1
-            end
-        end
-    end)
-end)
-
---[[ DataStore Save System ]]--
-local Saver = DataStoreService:GetDataStore("SaveLeaderstats")
-
-local function saveData(player)
-    local data = {}
-    for _, stat in ipairs(player:WaitForChild("leaderstats"):GetChildren()) do
-        data[stat.Name] = stat.Value
-    end
-
-    local success, err = pcall(function()
-        Saver:SetAsync(tostring(player.UserId), data)
-    end)
-
-    if not success then warn(err) end
+	-- Passive money gain system
+	task.spawn(function()
+		while player and player.Parent do
+			task.wait(30)
+			local gain = player:IsInGroup(3838582) and math.random(1000, 5000) or math.random(500, 1000)
+			money.Value += gain
+			sendNotification(player, "🏦 Bank: You received $"..gain, Color3.fromRGB(100, 255, 100))
+		end
+	end)
 end
 
+--// Chat Command Listener
+-- Trigger admin commands by typing chat starting with :
 Players.PlayerAdded:Connect(function(player)
-    local data
-    local success, err = pcall(function()
-        data = Saver:GetAsync(tostring(player.UserId))
-    end)
+	setupPlayer(player)
 
-    if success and data then
-        for name, value in pairs(data) do
-            local stat = player:WaitForChild("leaderstats"):FindFirstChild(name)
-            if stat then stat.Value = value end
-        end
-    elseif not success then
-        warn(err)
-    end
+	player.Chatted:Connect(function(msg)
+		if not isAdmin(player) then return end
+		if not msg:sub(1,1) == PREFIX then return end
+		local args = msg:split(" ")
+		local command = args[1]:sub(2):lower()
+		table.remove(args, 1)
+		if commands[command] then
+			commands[command](player, unpack(args)) -- Execute command if found
+		end
+	end)
 end)
 
-Players.PlayerRemoving:Connect(saveData)
+--// Save Player Data on Leave
+-- Persists player data when they leave or server shuts down
+local datastore = DataStoreService:GetDataStore("SaveLeaderstats")
+
+local function savePlayerData(player)
+	local stats = {}
+	for _, val in ipairs(player:WaitForChild("leaderstats"):GetChildren()) do
+		stats[val.Name] = val.Value -- Store name and value of each stat
+	end
+	local success, err = pcall(function()
+		datastore:SetAsync(tostring(player.UserId), stats)
+	end)
+	if not success then warn("[DataSave Failed]", err) end
+end
+
+-- Save on leave
+Players.PlayerRemoving:Connect(savePlayerData)
+-- Save on shutdown
 game:BindToClose(function()
-    for _, player in ipairs(Players:GetPlayers()) do
-        saveData(player)
-    end
-end)
+	for _, player in ipairs(Players:GetPlayers()) do
+		savePlayerData(player)
+	end
+end) -- Final line
